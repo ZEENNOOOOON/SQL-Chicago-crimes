@@ -1,0 +1,206 @@
+-- Create temp table with union all table.
+DROP TABLE IF EXISTS temp_crimes;
+CREATE TEMPORARY TABLE temp_crimes (
+  crime_id int,
+  date_reported datetime,
+  city_block TEXT,
+  primary_type TEXT,
+  primary_description TEXT,
+  location_description TEXT,
+  arrest TEXT,
+  domestic TEXT,
+  community_area TEXT,
+  year TEXT,
+  latitude TEXT,
+  longitude TEXT,
+  location TEXT
+);
+INSERT INTO temp_crimes (date_reported,
+  city_block,
+  primary_type,
+  primary_description,
+  location_description,
+  arrest,
+  domestic,
+  community_area,
+  year,
+  latitude,
+  longitude,
+  location)
+SELECT date_reported,,
+  city_block,
+  primary_type,
+  primary_description,
+  location_description,
+  arrest,
+  domestic,
+  community_area,
+  year,
+  latitude,
+  longitude,
+  location
+FROM chicago_crime_2018
+UNION
+SELECT date_reported,
+  city_block,
+  primary_type,
+  primary_description,
+  location_description,
+  arrest,
+  domestic,
+  community_area,
+  year,
+  latitude,
+  longitude,
+  location
+FROM chicago_crime_2019
+UNION
+SELECT date_reported,
+  city_block,
+  primary_type,
+  primary_description,
+  location_description,
+  arrest,
+  domestic,
+  community_area,
+  year,
+  latitude,
+  longitude,
+  location
+FROM chicago_crime_2020
+UNION
+SELECT date_reported,
+  city_block,
+  primary_type,
+  primary_description,
+  location_description,
+  arrest,
+  domestic,
+  community_area,
+  year,
+  latitude,
+  longitude,
+  location
+FROM chicago_crime_2021
+UNION
+SELECT date_reported,
+  city_block,
+  primary_type,
+  primary_description,
+  location_description,
+  arrest,
+  domestic,
+  community_area,
+  year,
+  latitude,
+  longitude,
+  location
+FROM chicago_crime_2022
+;
+
+-- Create table with all 
+DROP TABLE if EXISTS crimes;
+CREATE TABLE crimes (
+	crime_id INT,
+	reported_crime_date TEXT,
+	street_name TEXT NOT NULL,	
+	crime_type TEXT NOT NULL,	
+	crime_description TEXT NOT NULL,	
+	location_description TEXT,	
+	arrest boolean NOT NULL,	
+	domestic boolean NOT NULL,	
+	community_id int,
+	latitude float,	
+	longitude float,	
+	crime_location TEXT,
+	PRIMARY KEY (crime_id)
+);
+
+INSERT INTO crimes (
+	crime_id,
+	reported_crime_date,
+	street_name,
+	crime_type,	
+	crime_description,
+	location_description,
+	arrest,	
+	domestic,	
+	community_id,
+	latitude,	
+	longitude,	
+	crime_location
+)
+SELECT c.crime_id,
+	c.date_reported,
+	trim(lower(c.city_block)) || ' ' || trim(lower(c.city_block)),	
+	trim(lower(c.primary_type)),	
+	trim(lower(c.primary_description)),	
+	trim(lower(c.location_description)),	
+	c.arrest,	
+	c.domestic,	
+	c.community_area,	
+	c.latitude,	
+	c.longitude,	
+	c.location
+FROM
+	temp_crimes AS c
+ORDER BY 
+	-- Ordering results in random order to keep things interesting
+	random();
+	
+-- List the total number of reported crimes between 2018 and 2022
+SELECT count(*)
+FROM crimes;
+
+-- What is the count of Homicides, Battery and Assualts reported?
+SELECT crime_type,
+   count(*) as n_crimes
+FROM crimes
+WHERE crime_type in ('homicide', 'battery', 'assault')
+GROUP by crime_type
+ORDER by n_crimes DESC;
+
+-- Which are the 3 most common crimes reported and what percentage amount are they from the total amount of reported crimes?
+WITH get_top_crime as (
+	SELECT crime_type,
+		   count(*) as n_crimes
+	FROM crimes
+	GROUP by crime_type
+	ORDER by n_crimes DESC
+)
+SELECT crime_type,
+   n_crimes,
+   round(100 * n_crimes / sum(n_crimes) over(), 2) as total_percentage
+FROM get_top_crime
+LIMIT 3;
+
+-- What are the top 10 communities that had the most amount of crimes reported?
+-- Include the current poppulation, density and order by the number of reported crime.
+SELECT t2.name AS community,
+	t2.population,
+	t2.density,
+	count(*) AS reported_crimes
+FROM crimes AS t1
+JOIN chicago_areas AS t2
+ON t2.community_id = t1.community_id
+GROUP BY t2.name,
+	t2.population,
+	t2.density
+ORDER BY reported_crimes DESC
+LIMIT 10;
+
+-- What are the top ten communities that had the LEAST amount of crimes reported?
+-- Include the current population, density and order by the number of reported crimes.
+
+SELECT t2.name AS community,
+	t2.population,
+	t2.density,
+	count(*) AS reported_crimes
+FROM crimes AS t1
+JOIN chicago_areas AS t2
+ON t2.community_id = t1.community_id
+GROUP BY t2.name,
+	t2.population,
+	t2.density
+ORDER BY reported_crimes
+LIMIT 10;
